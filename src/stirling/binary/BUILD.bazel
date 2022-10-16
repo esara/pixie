@@ -1,0 +1,43 @@
+load("@io_bazel_rules_docker//cc:image.bzl", "cc_image")
+load("@io_bazel_rules_docker//container:container.bzl", "container_push")
+load("//bazel:pl_build_system.bzl", "pl_cc_binary", "pl_cc_library")
+
+package(default_visibility = ["//src/stirling:__subpackages__"])
+
+pl_cc_library(
+    name = "cc_library",
+    srcs = [
+        "binary.cc",
+        "binary.h",
+    ],
+    deps = [
+        "//src/common/event:cc_library",
+        "//src/stirling:cc_library",
+    ],
+)
+
+pl_cc_binary(
+    name = "binary",
+    srcs = ["main.cc"],
+    deps = [
+        "//src/common/signal:cc_library",
+        ":cc_library",
+    ],
+)
+
+cc_image(
+    name = "binary_image",
+    base = "//:pl_cc_bpf_image",
+    binary = ":binary",
+)
+
+container_push(
+    name = "publish",
+    format = "Docker",
+    image = ":binary_image",
+    registry = "index.docker.io",
+    repository = "esara/binary",
+    skip_unchanged_digest = True,
+    tag = "{IMAGE_TAG}",
+)
+
