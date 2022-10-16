@@ -21,21 +21,18 @@ FROM $BASE_IMAGE
 ARG USER_ID
 ARG USER_NAME
 ARG GROUP_ID
-ARG DOCKER_ID
 ARG SHELL
 
 ENV RUNNING_IN_DOCKER true
 
 RUN addgroup --gid ${GROUP_ID} ${USER_NAME} \
-  && addgroup --gid ${DOCKER_ID} docker-host \
   && adduser --disabled-password \
   --gecos '' \
   --uid ${USER_ID} \
   --gid ${GROUP_ID} \
   ${USER_NAME} \
   --shell ${SHELL} \
-  && usermod -a -G sudo ${USER_NAME} \
-  && usermod -a -G docker-host ${USER_NAME}
+  && usermod -a -G sudo ${USER_NAME}
 
 # Ensure sudo group users are not asked for a password when using
 # sudo command by ammending sudoers file.

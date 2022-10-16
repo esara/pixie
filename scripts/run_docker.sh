@@ -19,6 +19,19 @@
 # Script Usage:
 # run_docker.sh <cmd to run in docker container>
 
+realpath() {
+  OURPWD=$PWD
+  cd "$(dirname "$1")"
+  LINK=$(readlink "$(basename "$1")")
+  while [ "$LINK" ]; do
+    cd "$(dirname "$LINK")"
+    LINK=$(readlink "$(basename "$1")")
+  done
+  REALPATH="$PWD/$(basename "$1")"
+  cd "$OURPWD"
+  echo "$REALPATH"
+}
+
 script_dir="$(dirname "$0")"
 workspace_root=$(realpath "${script_dir}/../")
 
@@ -32,12 +45,6 @@ resetcolor="\e[0m"
 docker_image_base=gcr.io/pixie-oss/pixie-dev-public/dev_image_with_extras
 version=$(grep DOCKER_IMAGE_TAG "${workspace_root}/docker.properties" | cut -d= -f2)
 docker_image_with_tag="${docker_image_base}:${version}"
-docker_host_gid=$(getent group docker | awk -F: '{print $3}')
-
-if [[ -z "${docker_host_gid}" ]]; then
-    echo "${red}Docker needs to be enabled in order to run the dev container.{$resetcolor}"
-    exit 1
-fi
 
 shell=/bin/bash
 if [[ "${SHELL}" == *"zsh" ]]; then
@@ -51,7 +58,6 @@ docker build -q -t "${dev_image_name}" \
        --build-arg USER_NAME="${USER}" \
        --build-arg USER_ID="$(id -u)" \
        --build-arg GROUP_ID="$(id -g)" \
-       --build-arg DOCKER_ID="${docker_host_gid}" \
        --build-arg SHELL="${shell}" \
        .
 popd > /dev/null
