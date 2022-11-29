@@ -27,7 +27,9 @@
 #include "src/stirling/source_connectors/socket_tracer/bcc_bpf_intf/common.h"
 #include "src/stirling/source_connectors/socket_tracer/bcc_bpf_intf/socket_trace.h"
 
-static __inline enum message_type_t infer_http_message(const char* buf, size_t count) {
+typedef s8 int8_t;
+
+static __inline enum message_type_t infer_http_message(const char* buffer, size_t count) {
   // Smallest HTTP response is 17 characters:
   // HTTP/1.1 200 OK\r\n
   // Smallest HTTP response is 16 characters:
@@ -35,6 +37,10 @@ static __inline enum message_type_t infer_http_message(const char* buf, size_t c
   if (count < 16) {
     return kUnknown;
   }
+
+  // TODO: read into ringbuf
+  char buf[16];
+  bpf_probe_read_user_str(buf, 16, buffer);
 
   if (buf[0] == 'H' && buf[1] == 'T' && buf[2] == 'T' && buf[3] == 'P') {
     return kResponse;
@@ -699,9 +705,12 @@ static __inline struct protocol_message_t infer_protocol(const char* buf, size_t
   //               role by considering which side called accept() vs connect(). Once the clean-up
   //               above is done, the code below can be turned into a chained ternary.
   // PROTOCOL_LIST: Requires update on new protocols.
-  if (ENABLE_HTTP_TRACING && (inferred_message.type = infer_http_message(buf, count)) != kUnknown) {
+  if ((inferred_message.type = infer_http_message(buf, count)) != kUnknown) {
     inferred_message.protocol = kProtocolHTTP;
-  } else if (ENABLE_CQL_TRACING &&
+  } 
+
+  /*
+  else if (ENABLE_CQL_TRACING &&
              (inferred_message.type = infer_cql_message(buf, count)) != kUnknown) {
     inferred_message.protocol = kProtocolCQL;
   } else if (ENABLE_MONGO_TRACING &&
@@ -733,13 +742,18 @@ static __inline struct protocol_message_t infer_protocol(const char* buf, size_t
              (inferred_message.type = infer_nats_message(buf, count)) != kUnknown) {
     inferred_message.protocol = kProtocolNATS;
   }
+  */
 
   conn_info->prev_count = count;
   if (count == 4) {
+    /*
     conn_info->prev_buf[0] = buf[0];
     conn_info->prev_buf[1] = buf[1];
     conn_info->prev_buf[2] = buf[2];
     conn_info->prev_buf[3] = buf[3];
+    */
+
+    bpf_core_read_str(conn_info->prev_buf, 4, buf);
   }
 
   return inferred_message;

@@ -18,9 +18,11 @@
 
 #pragma once
 
+/*
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/socket.h>
+*/
 
 #include "src/stirling/source_connectors/socket_tracer/bcc_bpf_intf/common.h"
 
@@ -213,7 +215,7 @@ struct socket_data_event_t {
     bool prepend_length_header;
     uint32_t length_header;
   } attr;
-  char msg[MAX_MSG_SIZE];
+  unsigned char msg[MAX_MSG_SIZE];
 };
 
 #define CONN_OPEN (1 << 0)
@@ -262,13 +264,16 @@ struct socket_control_event_t {
 };
 
 struct connect_args_t {
-  const struct sockaddr* addr;
+  //const struct sockaddr* addr;
+  uintptr_t addr;
   int32_t fd;
 };
 
 struct accept_args_t {
-  struct sockaddr* addr;
-  struct socket* sock_alloc_socket;
+  // struct sockaddr *addr;
+  uintptr_t addr;
+  // struct socket *sock_alloc_socket;
+  uintptr_t sock_alloc_socket;
 };
 
 struct data_args_t {
@@ -282,14 +287,17 @@ struct data_args_t {
   int32_t fd;
 
   // For send()/recv()/write()/read().
-  const char* buf;
+  // const char* buf;
+  uintptr_t buf;
 
   // For sendmsg()/recvmsg()/writev()/readv().
-  const struct iovec* iov;
+  // const struct iovec* iov;
+  uintptr_t iov;
   size_t iovlen;
 
   // For sendmmsg()
-  unsigned int* msg_len;
+  // unsigned int* msg_len;
+  uintptr_t msg_len;
 
   // For SSL_write_ex and SSL_read_ex
   size_t* ssl_ex_len;
