@@ -48,6 +48,16 @@ static __inline uint64_t read_start_boottime(const struct task_struct* task) {
   return pl_nsec_to_clock_t(start_boottime);
 }
 
+static __inline uint64_t read_start_boottime2(const struct task_struct___2* task) {
+  struct task_struct* group_leader_ptr = 0;
+  BPF_CORE_READ_INTO(&group_leader_ptr, task, group_leader);
+
+  uint64_t start_boottime = 0;
+  BPF_CORE_READ_INTO(&start_boottime, group_leader_ptr, real_start_time);
+
+  return pl_nsec_to_clock_t(start_boottime);
+}
+
 static __inline uint64_t get_tgid_start_time() {
   struct task_struct* task = (struct task_struct*)bpf_get_current_task();
   return read_start_boottime(task);
