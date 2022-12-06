@@ -46,6 +46,7 @@ pl_cc_library(
         "//src/stirling/testing:__pkg__",
     ],
     deps = [
+        "//src/common/json:cc_library",
         "//src/shared/metadata:cc_library",
         "//src/shared/types:cc_library",
         "//src/shared/types/typespb/wrapper:cc_library",

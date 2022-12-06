@@ -20,6 +20,7 @@
 
 #include <utility>
 
+#include "src/common/json/json.h"
 #include "src/shared/upid/upid.h"
 
 namespace px {
@@ -34,6 +35,7 @@ using px::types::SemanticType;
 using px::types::StringValue;
 using px::types::Time64NSValue;
 using px::types::UInt128Value;
+using px::utils::JSONObjectBuilder;
 
 constexpr char kTimeFormat[] = "%Y-%m-%d %X";
 const absl::TimeZone kLocalTimeZone;
@@ -46,58 +48,60 @@ std::string ToString(const stirlingpb::TableSchema& schema,
   DCHECK_EQ(schema.elements_size(), record_batch.size());
   DCHECK_LT(index, record_batch[0]->Size());
 
-  std::string out;
+  JSONObjectBuilder builder;
+
   for (int j = 0; j < schema.elements_size(); ++j) {
     const auto& col = record_batch[j];
     const auto& col_schema = schema.elements(j);
 
-    absl::StrAppend(&out, " ", col_schema.name(), ":[");
+    auto key = col_schema.name();
 
     switch (col_schema.type()) {
       case DataType::TIME64NS: {
         const auto val = col->Get<Time64NSValue>(index).val;
         std::time_t time = val / 1000000000UL;
         absl::Time t = absl::FromTimeT(time);
-        absl::StrAppend(&out, absl::FormatTime(kTimeFormat, t, kLocalTimeZone));
+        builder.WriteKV(key, absl::FormatTime(kTimeFormat, t, kLocalTimeZone));
       } break;
       case DataType::INT64: {
         const auto val = col->Get<Int64Value>(index).val;
         if (col_schema.stype() == SemanticType::ST_DURATION_NS) {
           const auto secs = std::chrono::duration_cast<std::chrono::duration<double>>(
               std::chrono::nanoseconds(val));
-          absl::StrAppend(&out, absl::Substitute("$0 seconds", secs.count()));
+          builder.WriteKV(key, absl::Substitute("$0 seconds", secs.count()));
         } else {
-          absl::StrAppend(&out, val);
+          builder.WriteKV(key, val);
         }
       } break;
       case DataType::FLOAT64: {
+	/*
         const auto val = col->Get<Float64Value>(index).val;
-        absl::StrAppend(&out, val);
+        builder.WriteKV(key, val);
+	*/
       } break;
       case DataType::BOOLEAN: {
         const auto val = col->Get<BoolValue>(index).val;
-        absl::StrAppend(&out, val);
+        builder.WriteKV(key, val);
       } break;
       case DataType::STRING: {
         const auto& val = col->Get<StringValue>(index);
-        absl::StrAppend(&out, val);
+        builder.WriteKV(key, val);
       } break;
       case DataType::UINT128: {
         const auto& val = col->Get<UInt128Value>(index);
         if (col_schema.stype() == SemanticType::ST_UPID) {
           md::UPID upid(val.val);
-          absl::StrAppend(&out, absl::Substitute("{$0}", upid.String()));
+          builder.WriteKV(key, absl::Substitute("{$0}", upid.String()));
         } else {
-          absl::StrAppend(&out, absl::Substitute("{$0,$1}", val.High64(), val.Low64()));
+          builder.WriteKV(key, absl::Substitute("{$0,$1}", val.High64(), val.Low64()));
         }
       } break;
       default:
         LOG(DFATAL) << absl::Substitute("Unrecognized type: $0", ToString(col_schema.type()));
     }
-
-    absl::StrAppend(&out, "]");
   }
-  return out;
+
+  return builder.GetString();
 }
 
 }  // namespace
@@ -121,10 +125,19 @@ std::vector<std::string> ToString(const stirlingpb::TableSchema& schema,
 
 std::string ToString(std::string_view prefix, const stirlingpb::TableSchema& schema,
                      const types::ColumnWrapperRecordBatch& record_batch) {
+
   std::string out;
-  for (auto& record : ToString(schema, record_batch)) {
-    absl::StrAppend(&out, "[", prefix, "]", std::move(record), "\n");
+  absl::StrAppend(&out, "{\"type\": \"", prefix, "\", \"data\":[");
+  const auto &records = ToString(schema, record_batch);
+  for (size_t  i = 0; i < records.size(); i++) {
+    absl::StrAppend(&out, std::move(records[i]));
+
+    if (i < records.size() - 1) {
+	  absl::StrAppend(&out, ",");
+    }
   }
+
+  absl::StrAppend(&out, "]}");
   return out;
 }
 

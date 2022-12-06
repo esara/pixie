@@ -22,6 +22,21 @@ load("//bazel:pl_build_system.bzl", "pl_cc_binary")
 package(default_visibility = ["//src/stirling:__subpackages__"])
 
 pl_cc_binary(
+    name = "stirling_causely",
+    srcs = ["stirling_causely.cc"],
+    defines = [
+        "PXL_SUPPORT",
+    ],
+    deps = [
+        "//src/carnot/planner/probes:tracepoint_generator_lib",
+        "//src/common/signal:cc_library",
+        "//src/shared/tracepoint_translation:cc_library",
+        "//src/stirling:cc_library",
+    ],
+)
+
+
+pl_cc_binary(
     name = "stirling_wrapper",
     srcs = ["stirling_wrapper.cc"],
     defines = [
@@ -47,6 +62,22 @@ pl_cc_binary(
 )
 
 cc_image(
+    name = "stirling_causely_image",
+    base = "//:pl_cc_bpf_debug_image",
+    binary = ":stirling_causely",
+)
+
+container_push(
+    name = "push_stirling_causely_image",
+    format = "Docker",
+    image = ":stirling_causely_image",
+    registry = "causelydev.azurecr.io",
+    repository = "stirling_causely",
+    tag = "{BUILD_USER}",
+    tags = ["manual"],
+)
+
+cc_image(
     name = "stirling_wrapper_image",
     base = "//:pl_cc_bpf_debug_image",
     binary = ":stirling_wrapper",
@@ -61,6 +92,7 @@ container_push(
     tag = "{BUILD_USER}",
     tags = ["manual"],
 )
+
 
 pl_cc_binary(
     name = "stirling_dt",
